@@ -12,6 +12,8 @@ import ProductDetail  from './pages/ProductDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Artisians      from './pages/Artisians';
 import SearchResults  from './pages/SearchResults';
+import Checkout       from './pages/Checkout';
+import OrderConfirmation from './pages/OrderConfirmation';
 import { AuthContext } from './context/AuthContext';
 
 function App() {
@@ -31,7 +33,13 @@ function App() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/artisians"   element={<Artisians />} />
           <Route path="/search/:query" element={<SearchResults />} />
-          {user && <Route path="/admin" element={<AdminDashboard />} />}
+          {user && (
+            <>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
+            </>
+          )}
         </Routes>
       </main>
       <Footer />
