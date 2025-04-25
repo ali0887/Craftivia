@@ -1,22 +1,48 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
 import API from '../api/api';
+import { jwtDecode } from 'jwt-decode';
+
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) setUser(jwtDecode(token));
-  }, []);
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [user,  setUser ] = useState(() => {
+    try { return token ? jwtDecode(token).user : null; }
+    catch { return null; }
+  });
 
-  const login = async (email,password) => {
-    const { data } = await API.post('/auth/login',{ email,password });
-    localStorage.setItem('token',data.token);
-    setUser(jwtDecode(data.token));
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('token', token);
+      API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      setUser(jwtDecode(token).user);
+    } else {
+      localStorage.removeItem('token');
+      delete API.defaults.headers.common['Authorization'];
+      setUser(null);
+    }
+  }, [token]);
+
+  const login = async (email, password) => {
+    const res = await API.post('/auth/login', { email, password });
+    setToken(res.data.token);
   };
 
-  const logout = () => { localStorage.removeItem('token'); setUser(null); };
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>;
-};
+  const loginAdmin = async (email, password) => {
+    const res = await API.post('/auth/admin/login', { email, password });
+    setToken(res.data.token);
+  };
+
+  const register = async (name, email, password, role) => {
+    await API.post('/auth/register', { name, email, password, role });
+  };
+
+  const logout = () => setToken(null);
+
+  return (
+    <AuthContext.Provider value={{ token, user, login, loginAdmin, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}

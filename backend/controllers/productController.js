@@ -1,47 +1,49 @@
 const Product = require('../models/Product');
 
-exports.getAll = async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+// GET /api/products
+exports.getProducts = async (req, res) => {
+  const products = await Product.find().populate('artisan','name');
+  res.json(products);
 };
 
-exports.getOne = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    res.json(product);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+// GET /api/products/:id
+exports.getProductById = async (req, res) => {
+  const product = await Product.findById(req.params.id).populate('artisan','name');
+  if (!product) return res.status(404).json({ msg: 'Not found' });
+  res.json(product);
 };
 
-exports.create = async (req, res) => {
-  try {
-    const newProd = new Product({ artisan: req.user.id, ...req.body });
-    const saved = await newProd.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
+// POST /api/products  (only artisan)
+exports.createProduct = async (req, res) => {
+  const data = { ...req.body, artisan: req.user.id };
+  const product = new Product(data);
+  await product.save();
+  res.json(product);
 };
 
-exports.update = async (req, res) => {
-  try {
-    const updated = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
+// PUT /api/products/:id
+exports.updateProduct = async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ msg: 'Not found' });
+
+  // only owner or admin can update
+  if (product.artisan.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ msg: 'Unauthorized' });
   }
+
+  const updated = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(updated);
 };
 
-exports.remove = async (req, res) => {
-  try {
-    await Product.findByIdAndDelete(req.params.id);
-    res.json({ msg: 'Deleted' });
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
+// DELETE /api/products/:id
+exports.removeProduct = async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ msg: 'Not found' });
+
+  if (product.artisan.toString() !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ msg: 'Unauthorized' });
   }
+
+  await product.deleteOne();
+  res.json({ msg: 'Deleted' });
 };

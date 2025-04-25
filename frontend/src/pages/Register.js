@@ -1,15 +1,73 @@
-import React, { useState } from 'react';
-import API from '../api/api';
-const Register = () => {
-  const [form,setForm]=useState({name:'',email:'',pw:''});
-  const submit=async e=>{ e.preventDefault(); await API.post('/auth/register',{ name:form.name,email:form.email,password:form.pw,role:'buyer' }); };
+import React, { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+
+export default function Register() {
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole]         = useState('buyer');
+  const { register }            = useContext(AuthContext);
+  const nav                      = useNavigate();
+
+  const onSubmit = async e => {
+    e.preventDefault();
+    try {
+      await register(name, email, password, role);
+      alert('Registered! Please log in.');
+      nav('/login');
+    } catch (err) {
+      alert(err.response?.data?.msg || 'Registration failed');
+    }
+  };
+
   return (
-    <form onSubmit={submit}>
-      <input placeholder="Name" onChange={e=>setForm({...form,name:e.target.value})} />
-      <input placeholder="Email" onChange={e=>setForm({...form,email:e.target.value})} />
-      <input type="password" placeholder="Password" onChange={e=>setForm({...form,pw:e.target.value})} />
-      <button type="submit">Register</button>
-    </form>
+    <div className="container" style={{ maxWidth: 400 }}>
+      <h2 className="mt-4">Register</h2>
+      <form onSubmit={onSubmit}>
+        <div className="mb-3">
+          <label>Name</label>
+          <input
+            type="text"
+            className="form-control"
+            value={name}
+            onChange={e=>setName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Email</label>
+          <input
+            type="email"
+            className="form-control"
+            value={email}
+            onChange={e=>setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Password</label>
+          <input
+            type="password"
+            className="form-control"
+            value={password}
+            onChange={e=>setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Role</label>
+          <select
+            className="form-select"
+            value={role}
+            onChange={e=>setRole(e.target.value)}
+          >
+            <option value="buyer">Buyer</option>
+            <option value="artisan">Artisan</option>
+          </select>
+        </div>
+        <button className="btn btn-primary w-100">Create Account</button>
+      </form>
+    </div>
   );
-};
-export default Register;
+}

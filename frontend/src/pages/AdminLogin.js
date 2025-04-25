@@ -2,25 +2,25 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-export default function Login() {
+export default function AdminLogin() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const { login }               = useContext(AuthContext);
+  const { loginAdmin }          = useContext(AuthContext);
   const nav                      = useNavigate();
 
   const onSubmit = async e => {
     e.preventDefault();
     try {
-      await login(email, password);
-      nav('/');
+      await loginAdmin(email, password);
+      nav('/admin');
     } catch (err) {
-      alert(err.response?.data?.msg || 'Login failed');
+      alert(err.response?.data?.msg || 'Admin login failed');
     }
   };
 
   return (
     <div className="container" style={{ maxWidth: 400 }}>
-      <h2 className="mt-4">User Login</h2>
+      <h2 className="mt-4">Admin Login</h2>
       <form onSubmit={onSubmit}>
         <div className="mb-3">
           <label>Email</label>
@@ -42,7 +42,7 @@ export default function Login() {
             required
           />
         </div>
-        <button className="btn btn-primary w-100">Sign In</button>
+        <button className="btn btn-danger w-100">Sign In</button>
       </form>
     </div>
   );
