@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const Analytics = require('../models/Analytics');
 
 // GET /api/orders - Get all orders for a user
 exports.getOrders = async (req, res) => {
@@ -12,6 +13,21 @@ exports.getOrders = async (req, res) => {
     res.json(orders);
   } catch (err) {
     console.error('Error getting orders:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// GET /api/orders/admin/all - Get all orders (admin only)
+exports.getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .populate('items.product', 'name images price')
+      .populate('user', 'name email');
+    
+    res.json(orders);
+  } catch (err) {
+    console.error('Error getting all orders:', err);
     res.status(500).json({ msg: 'Server error' });
   }
 };
@@ -106,6 +122,28 @@ exports.createOrder = async (req, res) => {
     }
     
     await order.save();
+    
+    // Update analytics for this order
+    try {
+      // Get today's date with time set to midnight
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Update analytics with order count and revenue
+      await Analytics.findOneAndUpdate(
+        { date: today },
+        { 
+          $inc: { 
+            orders: 1,
+            revenue: totalAmount 
+          } 
+        },
+        { upsert: true, new: true }
+      );
+    } catch (analyticsError) {
+      // Log the error but don't fail the order creation
+      console.error('Error updating analytics:', analyticsError);
+    }
     
     // Clear the cart
     await Cart.findOneAndUpdate(

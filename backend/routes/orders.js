@@ -1,9 +1,10 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const {
   getOrders,
   getOrderById,
-  createOrder
+  createOrder,
+  getAllOrders
 } = require('../controllers/orderController');
 
 const router = express.Router();
@@ -19,5 +20,8 @@ router.get('/:id', getOrderById);
 
 // Create a new order
 router.post('/', createOrder);
+
+// Admin routes
+router.get('/admin/all', verifyAdmin, getAllOrders);
 
 module.exports = router; 

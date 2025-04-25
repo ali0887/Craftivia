@@ -8,6 +8,8 @@ const productRoutes = require('./routes/products');
 const cartRoutes    = require('./routes/cart');
 const userRoutes    = require('./routes/users');
 const orderRoutes   = require('./routes/orders');
+const adminRoutes   = require('./routes/admin');
+const { trackVisit } = require('./middleware/analytics');
 
 const app = express();
 
@@ -16,6 +18,7 @@ app.use(cors());
 // Increase JSON payload limit to 50MB to accommodate large base64-encoded images
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(trackVisit);
 
 // --- Routes ---
 app.use('/api/auth',     authRoutes);
@@ -23,6 +26,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart',     cartRoutes);
 app.use('/api/users',    userRoutes);
 app.use('/api/orders',   orderRoutes);
+app.use('/api/admin',    adminRoutes);
 
 // --- Start Server ---
 mongoose

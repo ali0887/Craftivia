@@ -1,475 +1,716 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import API from '../api/api';
+
+// Only import what we need, removing Pie since it's not used
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  PointElement, 
+  LineElement, 
+  BarElement,
+  Title, 
+  Tooltip, 
+  Legend,
+  ArcElement
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale, 
+  LinearScale, 
+  PointElement, 
+  LineElement, 
+  BarElement,
+  Title, 
+  Tooltip, 
+  Legend,
+  ArcElement
+);
 
 export default function AdminDashboard() {
   const { user } = useContext(AuthContext);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    name: '', 
-    description: '', 
-    category: '', 
-    price: '', 
-    countInStock: '', 
-    images: []
-  });
-  const [imageUrls, setImageUrls] = useState([]);
-  const [imagePreview, setImagePreview] = useState([]);
-  const fileInputRef = useRef(null);
-  // State for editing product
-  const [editMode, setEditMode] = useState(false);
-  const [editProductId, setEditProductId] = useState(null);
-
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('analytics');
+  
+  // Check if user is admin, if not redirect
   useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
-    try {
-      const res = await API.get('/products');
-      setProducts(res.data);
-    } catch (error) {
-      console.error('Error loading products:', error);
-      alert('Failed to load products. Please try again.');
+    if (user?.role !== 'admin') {
+      navigate('/');
     }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleImageUrlAdd = () => {
-    const url = prompt('Enter image URL:');
-    if (url && url.trim()) {
-      setImageUrls([...imageUrls, url.trim()]);
-      setForm(prev => ({ ...prev, images: [...prev.images, url.trim()] }));
-      setImagePreview([...imagePreview, url.trim()]);
-    }
-  };
-
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-    
-    // For demonstration, we're using local file URLs
-    // In a real app, you would upload these to a server or cloud storage
-    const newPreviewUrls = files.map(file => URL.createObjectURL(file));
-    
-    // For simplicity in this example, we'll use the file name as the URL
-    // In a real app, you would get the URL from your server/cloud storage after upload
-    const fakeUploadedUrls = files.map(file => `https://example.com/uploads/${file.name}`);
-    
-    setImagePreview([...imagePreview, ...newPreviewUrls]);
-    setForm(prev => ({ ...prev, images: [...prev.images, ...fakeUploadedUrls] }));
-  };
-
-  const removeImage = (index) => {
-    const newPreview = [...imagePreview];
-    newPreview.splice(index, 1);
-    setImagePreview(newPreview);
-    
-    const newImages = [...form.images];
-    newImages.splice(index, 1);
-    setForm(prev => ({ ...prev, images: newImages }));
-  };
-
-  const resetForm = () => {
-    setForm({ 
-      name: '', 
-      description: '', 
-      category: '', 
-      price: '', 
-      countInStock: '', 
-      images: [] 
-    });
-    setImagePreview([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setEditMode(false);
-    setEditProductId(null);
-  };
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      
-      const productData = {
-        ...form,
-        price: Number(form.price),
-        countInStock: Number(form.countInStock),
-        images: form.images
-      };
-
-      if (editMode && editProductId) {
-        // Update existing product
-        await API.put(`/products/${editProductId}`, productData);
-        alert('Product updated successfully!');
-      } else {
-        // Create new product
-        await API.post('/products', productData);
-        alert('Product added successfully!');
-      }
-      
-      // Reset form
-      resetForm();
-      
-      // Reload products
-      await loadProducts();
-      setLoading(false);
-    } catch (error) {
-      setLoading(false);
-      console.error('Error with product operation:', error);
-      alert(`Failed to ${editMode ? 'update' : 'add'} product. Please try again.`);
-    }
-  };
-
-  const onEdit = (product) => {
-    // Set form with product data
-    setForm({
-      name: product.name,
-      description: product.description || '',
-      category: product.category || '',
-      price: product.price.toString(),
-      countInStock: product.countInStock.toString(),
-      images: product.images || []
-    });
-
-    // Set image previews
-    setImagePreview(product.images || []);
-    
-    // Set edit mode
-    setEditMode(true);
-    setEditProductId(product._id);
-
-    // Scroll to form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const onCancelEdit = () => {
-    resetForm();
-  };
-
-  const onDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) return;
-    
-    try {
-      await API.delete(`/products/${id}`);
-      setProducts(ps => ps.filter(p => p._id !== id));
-      alert('Product deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      alert('Failed to delete product. Please try again.');
-    }
-  };
-
-  const onUpdateStock = async (id, product, newStock) => {
-    try {
-      // Get current stock
-      const currentStock = product.countInStock;
-      
-      // Ask for new stock amount
-      const input = prompt('Enter new stock quantity:', currentStock);
-      
-      if (input === null) return; // Cancelled
-      
-      const stockAmount = parseInt(input);
-      if (isNaN(stockAmount) || stockAmount < 0) {
-        alert('Please enter a valid number (0 or higher)');
-        return;
-      }
-      
-      // Update product with new stock
-      await API.put(`/products/${id}`, {
-        countInStock: stockAmount
-      });
-      
-      // Update local state
-      setProducts(products.map(p => 
-        p._id === id ? { ...p, countInStock: stockAmount } : p
-      ));
-      
-      alert('Stock updated successfully!');
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      alert('Failed to update stock. Please try again.');
-    }
-  };
-
-  const onToggleAvailability = async (id, product) => {
-    try {
-      const newStatus = product.countInStock > 0 ? 0 : 10; // Toggle between available (10) and unavailable (0)
-      
-      await API.put(`/products/${id}`, {
-        countInStock: newStatus
-      });
-      
-      // Update local state
-      setProducts(products.map(p => 
-        p._id === id ? { ...p, countInStock: newStatus } : p
-      ));
-      
-      alert(`Product is now ${newStatus > 0 ? 'available' : 'discontinued'}`);
-    } catch (error) {
-      console.error('Error toggling availability:', error);
-      alert('Failed to update product availability. Please try again.');
-    }
-  };
-
-  // if artisan, show only own products
-  const viewList = user?.role === 'artisan'
-    ? products.filter(p => p.artisan && p.artisan._id === user.id)
-    : products;
+  }, [user, navigate]);
 
   return (
-    <div className="container py-4">
-      <h2 className="mb-4">
-        {user?.role === 'admin' ? 'Admin Dashboard' : 'My Products'}
-      </h2>
-
-      {user?.role === 'artisan' && (
-        <div className="card mb-4 shadow-sm">
-          <div className="card-header bg-light">
-            <h5 className="mb-0">{editMode ? 'Edit Product' : 'Add New Product'}</h5>
-          </div>
-          <div className="card-body">
-            <form onSubmit={onSubmit}>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label htmlFor="name" className="form-label">Product Name</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    id="name"
-                    name="name"
-                    value={form.name}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                
-                <div className="col-md-6">
-                  <label htmlFor="category" className="form-label">Category</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    id="category"
-                    name="category"
-                    value={form.category}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                
-                <div className="col-md-6">
-                  <label htmlFor="price" className="form-label">Price ($)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    id="price"
-                    name="price"
-                    min="0.01"
-                    step="0.01"
-                    value={form.price}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                
-                <div className="col-md-6">
-                  <label htmlFor="countInStock" className="form-label">Quantity in Stock</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    id="countInStock"
-                    name="countInStock"
-                    min="0"
-                    value={form.countInStock}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                
-                <div className="col-12">
-                  <label htmlFor="description" className="form-label">Description</label>
-                  <textarea
-                    className="form-control"
-                    id="description"
-                    name="description"
-                    rows="3"
-                    value={form.description}
-                    onChange={handleInputChange}
-                    required
-                  ></textarea>
-                </div>
-                
-                <div className="col-12">
-                  <label className="form-label">Product Images</label>
-                  <div className="d-flex gap-2 mb-2">
-                    <input
-                      type="file"
-                      className="form-control"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImageUpload}
-                      ref={fileInputRef}
-                    />
-                    <button 
-                      type="button" 
-                      className="btn btn-outline-secondary"
-                      onClick={handleImageUrlAdd}
-                    >
-                      Add URL
-                    </button>
-                  </div>
-                  
-                  {imagePreview.length > 0 && (
-                    <div className="d-flex flex-wrap gap-2 mt-2">
-                      {imagePreview.map((url, index) => (
-                        <div key={index} className="position-relative" style={{ width: '100px' }}>
-                          <img
-                            src={url}
-                            alt={`Preview ${index + 1}`}
-                            className="img-thumbnail"
-                            style={{ width: '100px', height: '100px', objectFit: 'cover' }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-danger position-absolute top-0 end-0"
-                            onClick={() => removeImage(index)}
-                            style={{ fontSize: '0.7rem', padding: '0.1rem 0.3rem' }}
-                          >
-                            &times;
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {imagePreview.length === 0 && (
-                    <div className="alert alert-warning" role="alert">
-                      Please add at least one product image
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="d-flex mt-3 gap-2">
+    <div className="container-fluid">
+      <div className="row">
+        {/* Sidebar */}
+        <div className="col-md-3 col-lg-2 d-md-block bg-dark sidebar" style={{ minHeight: 'calc(100vh - 56px)' }}>
+          <div className="position-sticky pt-3">
+            <ul className="nav flex-column">
+              <li className="nav-item">
                 <button 
-                  type="submit" 
-                  className="btn btn-success"
-                  disabled={loading || imagePreview.length === 0}
+                  className={`nav-link btn btn-link text-white ${activeTab === 'analytics' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('analytics')}
                 >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      {editMode ? 'Updating Product...' : 'Adding Product...'}
-                    </>
-                  ) : (
-                    editMode ? 'Update Product' : 'Add Product'
-                  )}
+                  <i className="bi bi-graph-up me-2"></i>
+                  Dashboard & Analytics
                 </button>
-                
-                {editMode && (
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-secondary"
-                    onClick={onCancelEdit}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
+              </li>
+              <li className="nav-item">
+                <button 
+                  className={`nav-link btn btn-link text-white ${activeTab === 'products' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('products')}
+                >
+                  <i className="bi bi-box me-2"></i>
+                  Content Management
+                </button>
+              </li>
+              <li className="nav-item">
+                <button 
+                  className={`nav-link btn btn-link text-white ${activeTab === 'users' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('users')}
+                >
+                  <i className="bi bi-people me-2"></i>
+                  User Management
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
-      )}
 
-      {/* Products List */}
-      <div className="card shadow-sm">
-        <div className="card-header bg-light">
-          <h5 className="mb-0">Products</h5>
-        </div>
-        <div className="card-body">
-          {viewList.length === 0 ? (
-            <div className="alert alert-info">
-              {user?.role === 'artisan' 
-                ? "You haven't added any products yet." 
-                : "No products found."}
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle">
-                <thead>
-                  <tr>
-                    <th>Image</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Stock</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewList.map(product => (
-                    <tr key={product._id}>
-                      <td>
-                        <img 
-                          src={product.images[0]} 
-                          alt={product.name}
-                          className="img-thumbnail"
-                          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                        />
-                      </td>
-                      <td>{product.name}</td>
-                      <td>{product.category}</td>
-                      <td>${product.price}</td>
-                      <td>
-                        <span className={`badge ${product.countInStock > 0 ? 'bg-success' : 'bg-danger'}`}>
-                          {product.countInStock > 0 ? product.countInStock : 'Out of Stock'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="btn-group btn-group-sm">
-                          <button 
-                            type="button" 
-                            className="btn btn-outline-primary"
-                            onClick={() => onEdit(product)}
-                          >
-                            Edit
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-outline-secondary"
-                            onClick={() => onUpdateStock(product._id, product)}
-                          >
-                            Update Stock
-                          </button>
-                          <button 
-                            type="button" 
-                            className={`btn btn-outline-${product.countInStock > 0 ? 'warning' : 'success'}`}
-                            onClick={() => onToggleAvailability(product._id, product)}
-                          >
-                            {product.countInStock > 0 ? 'Discontinue' : 'Reactivate'}
-                          </button>
-                          <button 
-                            type="button" 
-                            className="btn btn-outline-danger"
-                            onClick={() => onDelete(product._id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        {/* Main content */}
+        <div className="col-md-9 col-lg-10 ms-sm-auto">
+          <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <h2>Admin Dashboard</h2>
+          </div>
+
+          {/* Tab Content */}
+          <div className="tab-content">
+            {activeTab === 'analytics' && <AnalyticsDashboard />}
+            {activeTab === 'products' && <ContentManagement />}
+            {activeTab === 'users' && <UserManagement />}
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Analytics Dashboard Component
+function AnalyticsDashboard() {
+  const [analytics, setAnalytics] = useState(null);
+  const [period, setPeriod] = useState('week');
+  const [loading, setLoading] = useState(true);
+
+  // Use useCallback to properly handle the function in the dependency array
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await API.get(`/admin/analytics/${period}`);
+      setAnalytics(res.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      setLoading(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]); // Now fetchAnalytics is properly included
+
+  // Handle period change
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod);
+  };
+
+  // Prepare chart data
+  const getVisitChartData = () => {
+    if (!analytics?.series?.visits || analytics.series.visits.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          label: 'Visits',
+          data: [],
+          borderColor: 'rgba(75, 192, 192, 1)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        }]
+      };
+    }
+
+    return {
+      labels: analytics.series.visits.map(item => item.date),
+      datasets: [{
+        label: 'Visits',
+        data: analytics.series.visits.map(item => item.visits),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        tension: 0.4
+      }]
+    };
+  };
+
+  const getOrderChartData = () => {
+    if (!analytics?.series?.orders || analytics.series.orders.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          label: 'Orders',
+          data: [],
+          backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        }]
+      };
+    }
+
+    return {
+      labels: analytics.series.orders.map(item => item.date),
+      datasets: [{
+        label: 'Orders',
+        data: analytics.series.orders.map(item => item.orders),
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+      }]
+    };
+  };
+
+  const getRevenueChartData = () => {
+    if (!analytics?.series?.orders || analytics.series.orders.length === 0) {
+      return {
+        labels: [],
+        datasets: [{
+          label: 'Revenue',
+          data: [],
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        }]
+      };
+    }
+
+    return {
+      labels: analytics.series.orders.map(item => item.date),
+      datasets: [{
+        label: 'Revenue ($)',
+        data: analytics.series.orders.map(item => item.revenue),
+        borderColor: 'rgba(255, 99, 132, 1)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        tension: 0.4
+      }]
+    };
+  };
+
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Analytics Data',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-4">
+        <div className="btn-group">
+          <button 
+            className={`btn ${period === 'day' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => handlePeriodChange('day')}
+          >
+            Today
+          </button>
+          <button 
+            className={`btn ${period === 'week' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => handlePeriodChange('week')}
+          >
+            Week
+          </button>
+          <button 
+            className={`btn ${period === 'month' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => handlePeriodChange('month')}
+          >
+            Month
+          </button>
+          <button 
+            className={`btn ${period === 'year' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => handlePeriodChange('year')}
+          >
+            Year
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center my-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <div className="row mb-4">
+            <div className="col-md-4">
+              <div className="card bg-primary text-white h-100">
+                <div className="card-body d-flex flex-column">
+                  <h5 className="card-title">Total Visits</h5>
+                  <p className="card-text display-4 mt-auto mb-0">
+                    {analytics?.summary?.totalVisits || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="card bg-success text-white h-100">
+                <div className="card-body d-flex flex-column">
+                  <h5 className="card-title">Orders Placed</h5>
+                  <p className="card-text display-4 mt-auto mb-0">
+                    {analytics?.summary?.totalOrders || 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-4">
+              <div className="card bg-danger text-white h-100">
+                <div className="card-body d-flex flex-column">
+                  <h5 className="card-title">Revenue Generated</h5>
+                  <p className="card-text display-4 mt-auto mb-0">
+                    ${analytics?.summary?.totalRevenue?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts */}
+          <div className="row mb-4">
+            <div className="col-md-6 mb-4">
+              <div className="card h-100">
+                <div className="card-header">
+                  <h5 className="mb-0">Site Visits</h5>
+                </div>
+                <div className="card-body">
+                  <Line data={getVisitChartData()} options={chartOptions} />
+                </div>
+              </div>
+            </div>
+            <div className="col-md-6 mb-4">
+              <div className="card h-100">
+                <div className="card-header">
+                  <h5 className="mb-0">Orders</h5>
+                </div>
+                <div className="card-body">
+                  <Bar data={getOrderChartData()} options={chartOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="row">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header">
+                  <h5 className="mb-0">Revenue</h5>
+                </div>
+                <div className="card-body">
+                  <Line data={getRevenueChartData()} options={chartOptions} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Content Management Component
+function ContentManagement() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await API.get('/products');
+      setProducts(res.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setLoading(false);
+    }
+  };
+
+  // Filter products based on search term
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Handle product deletion
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        await API.delete(`/products/${id}`);
+        setProducts(products.filter(p => p._id !== id));
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Failed to delete product');
+      }
+    }
+  };
+
+  // Handle product discontinuation
+  const handleToggleAvailability = async (product) => {
+    try {
+      const updatedStatus = product.countInStock > 0 ? 0 : 10;
+      await API.put(`/products/${product._id}`, { countInStock: updatedStatus });
+      
+      // Update product in state
+      setProducts(products.map(p => 
+        p._id === product._id ? { ...p, countInStock: updatedStatus } : p
+      ));
+    } catch (error) {
+      console.error('Error updating product availability:', error);
+      alert('Failed to update product availability');
+    }
+  };
+
+  // Handle stock update
+  const handleUpdateStock = async (product) => {
+    const newStock = prompt(`Enter new stock for ${product.name}:`, product.countInStock);
+    if (newStock === null) return;
+    
+    const stockValue = parseInt(newStock);
+    if (isNaN(stockValue) || stockValue < 0) {
+      alert('Please enter a valid number (0 or higher)');
+      return;
+    }
+    
+    try {
+      await API.put(`/products/${product._id}`, { countInStock: stockValue });
+      
+      // Update product in state
+      setProducts(products.map(p => 
+        p._id === product._id ? { ...p, countInStock: stockValue } : p
+      ));
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      alert('Failed to update stock');
+    }
+  };
+
+  // Handle product name update
+  const handleUpdateName = async (product) => {
+    const newName = prompt(`Enter new name for ${product.name}:`, product.name);
+    if (!newName || newName === product.name) return;
+    
+    try {
+      await API.put(`/products/${product._id}`, { name: newName });
+      
+      // Update product in state
+      setProducts(products.map(p => 
+        p._id === product._id ? { ...p, name: newName } : p
+      ));
+    } catch (error) {
+      console.error('Error updating product name:', error);
+      alert('Failed to update product name');
+    }
+  };
+
+  // Handle category update
+  const handleUpdateCategory = async (product) => {
+    const newCategory = prompt(`Enter new category for ${product.name}:`, product.category);
+    if (!newCategory || newCategory === product.category) return;
+    
+    try {
+      await API.put(`/products/${product._id}`, { category: newCategory });
+      
+      // Update product in state
+      setProducts(products.map(p => 
+        p._id === product._id ? { ...p, category: newCategory } : p
+      ));
+    } catch (error) {
+      console.error('Error updating category:', error);
+      alert('Failed to update category');
+    }
+  };
+
+  // Handle image update
+  const handleUpdateImage = async (product) => {
+    const newImageUrl = prompt(`Enter new image URL for ${product.name}:`, product.images?.[0] || '');
+    if (!newImageUrl) return;
+    
+    try {
+      await API.put(`/products/${product._id}`, { images: [newImageUrl] });
+      
+      // Update product in state
+      setProducts(products.map(p => 
+        p._id === product._id ? { ...p, images: [newImageUrl] } : p
+      ));
+    } catch (error) {
+      console.error('Error updating image:', error);
+      alert('Failed to update image');
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-4">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search products..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center my-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center">No products found</td>
+                </tr>
+              ) : (
+                filteredProducts.map(product => (
+                  <tr key={product._id}>
+                    <td>
+                      <img 
+                        src={product.images?.[0] || 'https://via.placeholder.com/50'} 
+                        alt={product.name} 
+                        className="img-thumbnail" 
+                        style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                      />
+                    </td>
+                    <td>{product.name}</td>
+                    <td>{product.category}</td>
+                    <td>${product.price.toFixed(2)}</td>
+                    <td>{product.countInStock}</td>
+                    <td>
+                      <span className={`badge ${product.countInStock > 0 ? 'bg-success' : 'bg-danger'}`}>
+                        {product.countInStock > 0 ? 'Available' : 'Discontinued'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="btn-group">
+                        <button 
+                          className="btn btn-sm btn-outline-primary" 
+                          onClick={() => handleUpdateName(product)}
+                          title="Update Name"
+                        >
+                          <i className="bi bi-pencil"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-success" 
+                          onClick={() => handleUpdateStock(product)}
+                          title="Update Stock"
+                        >
+                          <i className="bi bi-box"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-info" 
+                          onClick={() => handleUpdateCategory(product)}
+                          title="Update Category"
+                        >
+                          <i className="bi bi-tag"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-secondary" 
+                          onClick={() => handleUpdateImage(product)}
+                          title="Update Image"
+                        >
+                          <i className="bi bi-image"></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-warning" 
+                          onClick={() => handleToggleAvailability(product)}
+                          title={product.countInStock > 0 ? "Discontinue" : "Restore"}
+                        >
+                          <i className={`bi ${product.countInStock > 0 ? 'bi-x-octagon' : 'bi-check-circle'}`}></i>
+                        </button>
+                        <button 
+                          className="btn btn-sm btn-outline-danger" 
+                          onClick={() => handleDeleteProduct(product._id)}
+                          title="Delete"
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// User Management Component
+function UserManagement() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const res = await API.get('/admin/users');
+      setUsers(res.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setLoading(false);
+    }
+  };
+
+  // Filter users based on search term
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Handle user deletion
+  const handleDeleteUser = async (id) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        await API.delete(`/admin/users/${id}`);
+        setUsers(users.filter(u => u._id !== id));
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user');
+      }
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-4">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center my-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="text-center">No users found</td>
+                </tr>
+              ) : (
+                filteredUsers.map(user => (
+                  <tr key={user._id}>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        {user.profileImage ? (
+                          <img 
+                            src={user.profileImage} 
+                            alt={user.name} 
+                            className="rounded-circle me-2" 
+                            style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div 
+                            className="rounded-circle me-2 d-flex align-items-center justify-content-center bg-secondary text-white" 
+                            style={{ width: '30px', height: '30px' }}
+                          >
+                            {user.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        {user.name}
+                      </div>
+                    </td>
+                    <td>{user.email}</td>
+                    <td>
+                      <span className={`badge ${
+                        user.role === 'admin' ? 'bg-danger' :
+                        user.role === 'artisan' ? 'bg-success' : 'bg-primary'
+                      }`}>
+                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                      </span>
+                    </td>
+                    <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                      {user.role !== 'admin' && (
+                        <button 
+                          className="btn btn-sm btn-outline-danger" 
+                          onClick={() => handleDeleteUser(user._id)}
+                        >
+                          <i className="bi bi-trash me-1"></i>
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
