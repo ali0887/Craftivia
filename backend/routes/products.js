@@ -5,13 +5,15 @@ const {
   getProductById,
   createProduct,
   updateProduct,
-  removeProduct
+  removeProduct,
+  searchProducts
 } = require('../controllers/productController');
 
 const router = express.Router();
 
 // Public
 router.get('/',    getProducts);
+router.get('/search/:query', searchProducts);
 router.get('/:id', getProductById);
 
 // Artisan-only creation

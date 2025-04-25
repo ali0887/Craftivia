@@ -20,7 +20,7 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      nav(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      nav(`/search/${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
     }
   };

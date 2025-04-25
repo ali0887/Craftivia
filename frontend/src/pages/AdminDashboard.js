@@ -111,7 +111,7 @@ export default function AdminDashboard() {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
     
     try {
       await API.delete(`/products/${id}`);

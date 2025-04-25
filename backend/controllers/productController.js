@@ -13,6 +13,29 @@ exports.getProductById = async (req, res) => {
   res.json(product);
 };
 
+// GET /api/products/search/:query
+exports.searchProducts = async (req, res) => {
+  try {
+    const searchQuery = req.params.query;
+    // Create a case-insensitive regular expression for search
+    const searchRegex = new RegExp(searchQuery, 'i');
+    
+    // Search in name, description, and category fields
+    const products = await Product.find({
+      $or: [
+        { name: searchRegex },
+        { description: searchRegex },
+        { category: searchRegex }
+      ]
+    }).populate('artisan', 'name');
+    
+    res.json(products);
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ msg: 'Server error during search' });
+  }
+};
+
 // POST /api/products  (only artisan)
 exports.createProduct = async (req, res) => {
   const data = { ...req.body, artisan: req.user.id };

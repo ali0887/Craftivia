@@ -11,6 +11,7 @@ import Profile        from './pages/Profile';
 import ProductDetail  from './pages/ProductDetail';
 import AdminDashboard from './pages/AdminDashboard';
 import Artisians      from './pages/Artisians';
+import SearchResults  from './pages/SearchResults';
 import { AuthContext } from './context/AuthContext';
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
           <Route path="/profile"     element={<Profile />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/artisians"   element={<Artisians />} />
+          <Route path="/search/:query" element={<SearchResults />} />
           {user && <Route path="/admin" element={<AdminDashboard />} />}
         </Routes>
       </main>

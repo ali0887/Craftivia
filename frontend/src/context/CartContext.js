@@ -5,7 +5,7 @@ import { AuthContext } from './AuthContext';
 export const CartContext = createContext();
 
 export function CartProvider({ children }) {
-  const { token, user } = useContext(AuthContext);
+  const { token } = useContext(AuthContext);
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
