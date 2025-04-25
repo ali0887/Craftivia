@@ -45,10 +45,40 @@ export function AuthProvider({ children }) {
     await API.post('/auth/register', registrationData);
   };
 
+  const updateUserProfile = async (userData) => {
+    const res = await API.put('/users/profile', userData);
+    
+    // Update current user with new data (we can't directly update the token, 
+    // so we update just the user state until next login)
+    if (user) {
+      const updatedUser = {
+        ...user,
+        name: res.data.name,
+        bio: res.data.bio
+      };
+      
+      if (res.data.profileImage) {
+        updatedUser.profileImage = res.data.profileImage;
+      }
+      
+      setUser(updatedUser);
+    }
+    
+    return res.data;
+  };
+
   const logout = () => setToken(null);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, loginAdmin, register, logout }}>
+    <AuthContext.Provider value={{ 
+      token, 
+      user, 
+      login, 
+      loginAdmin, 
+      register, 
+      updateUserProfile,
+      logout 
+    }}>
       {children}
     </AuthContext.Provider>
   );

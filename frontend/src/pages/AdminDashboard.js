@@ -17,6 +17,9 @@ export default function AdminDashboard() {
   const [imageUrls, setImageUrls] = useState([]);
   const [imagePreview, setImagePreview] = useState([]);
   const fileInputRef = useRef(null);
+  // State for editing product
+  const [editMode, setEditMode] = useState(false);
+  const [editProductId, setEditProductId] = useState(null);
 
   useEffect(() => {
     loadProducts();
@@ -72,42 +75,80 @@ export default function AdminDashboard() {
     setForm(prev => ({ ...prev, images: newImages }));
   };
 
+  const resetForm = () => {
+    setForm({ 
+      name: '', 
+      description: '', 
+      category: '', 
+      price: '', 
+      countInStock: '', 
+      images: [] 
+    });
+    setImagePreview([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setEditMode(false);
+    setEditProductId(null);
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
       
-      // In a real implementation, you'd first upload the images to your server/cloud storage
-      // Then use the returned URLs in your product creation
-      
-      await API.post('/products', {
+      const productData = {
         ...form,
         price: Number(form.price),
         countInStock: Number(form.countInStock),
-        // Ensure we're sending the array of image URLs
         images: form.images
-      });
+      };
+
+      if (editMode && editProductId) {
+        // Update existing product
+        await API.put(`/products/${editProductId}`, productData);
+        alert('Product updated successfully!');
+      } else {
+        // Create new product
+        await API.post('/products', productData);
+        alert('Product added successfully!');
+      }
       
       // Reset form
-      setForm({ 
-        name: '', 
-        description: '', 
-        category: '', 
-        price: '', 
-        countInStock: '', 
-        images: [] 
-      });
-      setImagePreview([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      resetForm();
       
       // Reload products
       await loadProducts();
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      console.error('Error adding product:', error);
-      alert('Failed to add product. Please try again.');
+      console.error('Error with product operation:', error);
+      alert(`Failed to ${editMode ? 'update' : 'add'} product. Please try again.`);
     }
+  };
+
+  const onEdit = (product) => {
+    // Set form with product data
+    setForm({
+      name: product.name,
+      description: product.description || '',
+      category: product.category || '',
+      price: product.price.toString(),
+      countInStock: product.countInStock.toString(),
+      images: product.images || []
+    });
+
+    // Set image previews
+    setImagePreview(product.images || []);
+    
+    // Set edit mode
+    setEditMode(true);
+    setEditProductId(product._id);
+
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const onCancelEdit = () => {
+    resetForm();
   };
 
   const onDelete = async (id) => {
@@ -116,27 +157,81 @@ export default function AdminDashboard() {
     try {
       await API.delete(`/products/${id}`);
       setProducts(ps => ps.filter(p => p._id !== id));
+      alert('Product deleted successfully!');
     } catch (error) {
       console.error('Error deleting product:', error);
       alert('Failed to delete product. Please try again.');
     }
   };
 
+  const onUpdateStock = async (id, product, newStock) => {
+    try {
+      // Get current stock
+      const currentStock = product.countInStock;
+      
+      // Ask for new stock amount
+      const input = prompt('Enter new stock quantity:', currentStock);
+      
+      if (input === null) return; // Cancelled
+      
+      const stockAmount = parseInt(input);
+      if (isNaN(stockAmount) || stockAmount < 0) {
+        alert('Please enter a valid number (0 or higher)');
+        return;
+      }
+      
+      // Update product with new stock
+      await API.put(`/products/${id}`, {
+        countInStock: stockAmount
+      });
+      
+      // Update local state
+      setProducts(products.map(p => 
+        p._id === id ? { ...p, countInStock: stockAmount } : p
+      ));
+      
+      alert('Stock updated successfully!');
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      alert('Failed to update stock. Please try again.');
+    }
+  };
+
+  const onToggleAvailability = async (id, product) => {
+    try {
+      const newStatus = product.countInStock > 0 ? 0 : 10; // Toggle between available (10) and unavailable (0)
+      
+      await API.put(`/products/${id}`, {
+        countInStock: newStatus
+      });
+      
+      // Update local state
+      setProducts(products.map(p => 
+        p._id === id ? { ...p, countInStock: newStatus } : p
+      ));
+      
+      alert(`Product is now ${newStatus > 0 ? 'available' : 'discontinued'}`);
+    } catch (error) {
+      console.error('Error toggling availability:', error);
+      alert('Failed to update product availability. Please try again.');
+    }
+  };
+
   // if artisan, show only own products
-  const viewList = user.role === 'artisan'
+  const viewList = user?.role === 'artisan'
     ? products.filter(p => p.artisan && p.artisan._id === user.id)
     : products;
 
   return (
     <div className="container py-4">
       <h2 className="mb-4">
-        {user.role === 'admin' ? 'Admin Dashboard' : 'My Products'}
+        {user?.role === 'admin' ? 'Admin Dashboard' : 'My Products'}
       </h2>
 
-      {user.role === 'artisan' && (
+      {user?.role === 'artisan' && (
         <div className="card mb-4 shadow-sm">
           <div className="card-header bg-light">
-            <h5 className="mb-0">Add New Product</h5>
+            <h5 className="mb-0">{editMode ? 'Edit Product' : 'Add New Product'}</h5>
           </div>
           <div className="card-body">
             <form onSubmit={onSubmit}>
@@ -260,7 +355,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              <div className="d-grid mt-3">
+              <div className="d-flex mt-3 gap-2">
                 <button 
                   type="submit" 
                   className="btn btn-success"
@@ -269,62 +364,111 @@ export default function AdminDashboard() {
                   {loading ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Adding Product...
+                      {editMode ? 'Updating Product...' : 'Adding Product...'}
                     </>
                   ) : (
-                    'Add Product'
+                    editMode ? 'Update Product' : 'Add Product'
                   )}
                 </button>
+                
+                {editMode && (
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-secondary"
+                    onClick={onCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* Products List */}
       <div className="card shadow-sm">
-        <div className="card-header bg-light d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">Product List</h5>
-          <span className="badge bg-primary">{viewList.length} Products</span>
+        <div className="card-header bg-light">
+          <h5 className="mb-0">Products</h5>
         </div>
-        
-        {viewList.length === 0 ? (
-          <div className="card-body text-center py-5">
-            <p className="text-muted mb-0">No products found. Add your first product above!</p>
-          </div>
-        ) : (
-          <div className="list-group list-group-flush">
-            {viewList.map(p => (
-              <div key={p._id} className="list-group-item">
-                <div className="d-flex align-items-center">
-                  {p.images && p.images[0] && (
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      className="me-3 rounded"
-                      style={{ width: '60px', height: '60px', objectFit: 'cover' }}
-                    />
-                  )}
-                  <div className="flex-grow-1">
-                    <h5 className="mb-1">{p.name}</h5>
-                    <div className="d-flex flex-wrap gap-2">
-                      <small className="text-success">${p.price}</small>
-                      <small className="text-muted">Category: {p.category}</small>
-                      <small className="text-muted">In Stock: {p.countInStock}</small>
-                    </div>
-                  </div>
-                  <div className="btn-group">
-                    <button 
-                      className="btn btn-outline-danger btn-sm"
-                      onClick={() => onDelete(p._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="card-body">
+          {viewList.length === 0 ? (
+            <div className="alert alert-info">
+              {user?.role === 'artisan' 
+                ? "You haven't added any products yet." 
+                : "No products found."}
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>Image</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewList.map(product => (
+                    <tr key={product._id}>
+                      <td>
+                        <img 
+                          src={product.images[0]} 
+                          alt={product.name}
+                          className="img-thumbnail"
+                          style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                        />
+                      </td>
+                      <td>{product.name}</td>
+                      <td>{product.category}</td>
+                      <td>${product.price}</td>
+                      <td>
+                        <span className={`badge ${product.countInStock > 0 ? 'bg-success' : 'bg-danger'}`}>
+                          {product.countInStock > 0 ? product.countInStock : 'Out of Stock'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <button 
+                            type="button" 
+                            className="btn btn-outline-primary"
+                            onClick={() => onEdit(product)}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-outline-secondary"
+                            onClick={() => onUpdateStock(product._id, product)}
+                          >
+                            Update Stock
+                          </button>
+                          <button 
+                            type="button" 
+                            className={`btn btn-outline-${product.countInStock > 0 ? 'warning' : 'success'}`}
+                            onClick={() => onToggleAvailability(product._id, product)}
+                          >
+                            {product.countInStock > 0 ? 'Discontinue' : 'Reactivate'}
+                          </button>
+                          <button 
+                            type="button" 
+                            className="btn btn-outline-danger"
+                            onClick={() => onDelete(product._id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
