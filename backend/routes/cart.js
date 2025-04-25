@@ -1,5 +1,5 @@
 const express = require('express');
-const { verifyBuyer } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth');
 const {
   getCart,
   addToCart,
@@ -10,8 +10,8 @@ const {
 
 const router = express.Router();
 
-// All cart routes require a logged-in buyer
-router.use(verifyBuyer);
+// All cart routes require authentication but not restricted to buyers
+router.use(verifyToken);
 
 router.get('/',           getCart);
 router.post('/',          addToCart);
