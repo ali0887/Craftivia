@@ -34,8 +34,15 @@ export function AuthProvider({ children }) {
     setToken(res.data.token);
   };
 
-  const register = async (name, email, password, role) => {
-    await API.post('/auth/register', { name, email, password, role });
+  const register = async (name, email, password, role, profileImage, bio) => {
+    // Create the registration data object with required fields
+    const registrationData = { name, email, password, role };
+    
+    // Add optional fields if provided
+    if (profileImage) registrationData.profileImage = profileImage;
+    if (bio) registrationData.bio = bio;
+    
+    await API.post('/auth/register', registrationData);
   };
 
   const logout = () => setToken(null);

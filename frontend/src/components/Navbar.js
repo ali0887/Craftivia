@@ -2,7 +2,6 @@ import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { CartContext } from '../context/CartContext';
-import DarkModeToggle from './DarkModeToggle';
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
@@ -104,37 +103,60 @@ export default function Navbar() {
                 Home
               </Link>
             </li>
+
+            <li className="nav-item">
+              <Link 
+                className={`nav-link ${isActive('/artisians')}`} 
+                to="/artisians"
+                onClick={closeMenu}
+              >
+                Artisians
+              </Link>
+            </li>
             
             {!user ? (
-              <>
-                <li className="nav-item">
-                  <Link 
-                    className={`nav-link ${isActive('/login')}`} 
-                    to="/login"
-                    onClick={closeMenu}
-                  >
-                    Login
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link 
-                    className={`nav-link ${isActive('/admin/login')}`} 
-                    to="/admin/login"
-                    onClick={closeMenu}
-                  >
-                    Admin Login
-                  </Link>
-                </li>
-                <li className="nav-item">
-                  <Link 
-                    className={`nav-link ${isActive('/register')}`} 
-                    to="/register"
-                    onClick={closeMenu}
-                  >
-                    Register
-                  </Link>
-                </li>
-              </>
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle"
+                  href="#"
+                  id="authDropdown"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  Account
+                </a>
+                <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="authDropdown">
+                  <li>
+                    <Link 
+                      className="dropdown-item" 
+                      to="/login"
+                      onClick={closeMenu}
+                    >
+                      <i className="bi bi-box-arrow-in-right me-2"></i>Login
+                    </Link>
+                  </li>
+                  <li>
+                    <Link 
+                      className="dropdown-item" 
+                      to="/admin/login"
+                      onClick={closeMenu}
+                    >
+                      <i className="bi bi-shield-lock me-2"></i>Admin Login
+                    </Link>
+                  </li>
+                  <li><hr className="dropdown-divider" /></li>
+                  <li>
+                    <Link 
+                      className="dropdown-item" 
+                      to="/register"
+                      onClick={closeMenu}
+                    >
+                      <i className="bi bi-person-plus me-2"></i>Register
+                    </Link>
+                  </li>
+                </ul>
+              </li>
             ) : (
               <>
                 <li className="nav-item dropdown">
@@ -210,13 +232,6 @@ export default function Navbar() {
                 </li>
               </>
             )}
-            
-            {/* Dark mode toggle */}
-            <li className="nav-item ms-lg-2">
-              <div className="nav-link">
-                <DarkModeToggle />
-              </div>
-            </li>
           </ul>
         </div>
       </div>

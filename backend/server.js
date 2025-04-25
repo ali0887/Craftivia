@@ -6,17 +6,21 @@ require('dotenv').config();
 const authRoutes    = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const cartRoutes    = require('./routes/cart');
+const userRoutes    = require('./routes/users');
 
 const app = express();
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
+// Increase JSON payload limit to 50MB to accommodate large base64-encoded images
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- Routes ---
 app.use('/api/auth',     authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart',     cartRoutes);
+app.use('/api/users',    userRoutes);
 
 // --- Start Server ---
 mongoose

@@ -4,7 +4,7 @@ const User   = require('../models/User');
 
 // POST /api/auth/register
 exports.register = async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, profileImage, bio } = req.body;
   try {
     if (await User.findOne({ email })) {
       return res.status(400).json({ msg: 'Email already in use' });
@@ -12,7 +12,20 @@ exports.register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
-    const user = new User({ name, email, password: hash, role });
+    
+    // Create user with additional profile data if provided
+    const userData = { 
+      name, 
+      email, 
+      password: hash, 
+      role 
+    };
+    
+    // Only include optional fields if they're provided
+    if (profileImage) userData.profileImage = profileImage;
+    if (bio) userData.bio = bio;
+    
+    const user = new User(userData);
     await user.save();
 
     res.json({ msg: 'User registered' });

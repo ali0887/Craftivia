@@ -50,7 +50,13 @@ exports.removeCartItem = async (req, res) => {
   const cart = await Cart.findOne({ user: req.user.id });
   if (!cart) return res.status(404).json({ msg: 'Cart not found' });
 
-  cart.items.id(itemId).remove();
+  // Find the item by id
+  const item = cart.items.id(itemId);
+  if (!item) return res.status(404).json({ msg: 'Item not found' });
+  
+  // Remove the item using pull method
+  cart.items.pull(itemId);
+  
   await cart.save();
   res.json(await cart.populate('items.product'));
 };
