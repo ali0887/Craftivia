@@ -9,6 +9,7 @@ const cartRoutes    = require('./routes/cart');
 const userRoutes    = require('./routes/users');
 const orderRoutes   = require('./routes/orders');
 const adminRoutes   = require('./routes/admin');
+const wishlistRoutes = require('./routes/wishlist');
 const { trackVisit } = require('./middleware/analytics');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/cart',     cartRoutes);
 app.use('/api/users',    userRoutes);
 app.use('/api/orders',   orderRoutes);
 app.use('/api/admin',    adminRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // --- Start Server ---
 mongoose

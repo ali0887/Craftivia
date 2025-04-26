@@ -2,10 +2,12 @@ import React, { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { CartContext } from '../context/CartContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const { cartItems } = useContext(CartContext);
+  const { darkMode, toggleDarkMode } = useContext(ThemeContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const nav = useNavigate();
@@ -37,8 +39,11 @@ export default function Navbar() {
     return location.pathname === path ? 'active' : '';
   };
 
+  // Apply dark mode classes
+  const navbarClass = `navbar navbar-expand-lg ${darkMode ? 'navbar-dark bg-dark' : 'navbar-light bg-light'} sticky-top shadow-sm`;
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-light sticky-top shadow-sm">
+    <nav className={navbarClass}>
       <div className="container">
         <Link className="navbar-brand d-flex align-items-center" to="/" onClick={closeMenu}>
           <span className="fs-4 fw-bold text-primary">Craftivia</span>
@@ -80,13 +85,13 @@ export default function Navbar() {
             <div className="input-group">
               <input
                 type="search"
-                className="form-control"
+                className={`form-control ${darkMode ? 'bg-dark text-light border-dark' : ''}`}
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label="Search"
               />
-              <button className="btn btn-outline-primary" type="submit">
+              <button className={`btn ${darkMode ? 'btn-outline-light' : 'btn-outline-primary'}`} type="submit">
                 <i className="bi bi-search"></i>
               </button>
             </div>
@@ -114,6 +119,20 @@ export default function Navbar() {
               </Link>
             </li>
             
+            {/* Dark Mode Toggle */}
+            <li className="nav-item">
+              <button 
+                className="nav-link btn btn-link" 
+                onClick={toggleDarkMode}
+              >
+                {darkMode ? (
+                  <i className="bi bi-sun fs-5" title="Switch to Light Mode"></i>
+                ) : (
+                  <i className="bi bi-moon fs-5" title="Switch to Dark Mode"></i>
+                )}
+              </button>
+            </li>
+            
             {!user ? (
               <li className="nav-item dropdown">
                 <a
@@ -126,7 +145,7 @@ export default function Navbar() {
                 >
                   Account
                 </a>
-                <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="authDropdown">
+                <ul className={`dropdown-menu dropdown-menu-end ${darkMode ? 'dropdown-menu-dark' : ''}`} aria-labelledby="authDropdown">
                   <li>
                     <Link 
                       className="dropdown-item" 
@@ -170,7 +189,7 @@ export default function Navbar() {
                   >
                     <span className="d-none d-lg-inline-block me-1">Hi,</span> {user.name}
                   </a>
-                  <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                  <ul className={`dropdown-menu dropdown-menu-end ${darkMode ? 'dropdown-menu-dark' : ''}`} aria-labelledby="userDropdown">
                     <li>
                       <Link 
                         className="dropdown-item" 

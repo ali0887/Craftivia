@@ -8,15 +8,29 @@ export const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [user,  setUser ] = useState(() => {
-    try { return token ? jwtDecode(token).user : null; }
-    catch { return null; }
+    try { 
+      return token ? jwtDecode(token).user : null; 
+    }
+    catch { 
+      // If token is invalid, remove it
+      localStorage.removeItem('token');
+      return null; 
+    }
   });
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem('token', token);
-      API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      setUser(jwtDecode(token).user);
+      try {
+        localStorage.setItem('token', token);
+        API.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        setUser(jwtDecode(token).user);
+        console.log('Auth token set:', token.substring(0, 15) + '...');
+      } catch (error) {
+        console.error('Invalid token:', error);
+        localStorage.removeItem('token');
+        delete API.defaults.headers.common['Authorization'];
+        setUser(null);
+      }
     } else {
       localStorage.removeItem('token');
       delete API.defaults.headers.common['Authorization'];
