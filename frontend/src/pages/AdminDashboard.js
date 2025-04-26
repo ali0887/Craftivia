@@ -34,11 +34,11 @@ ChartJS.register(
 export default function AdminDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('analytics');
+  const [activeTab, setActiveTab] = useState(user?.role === 'artisan' ? 'products' : 'analytics');
   
-  // Check if user is admin, if not redirect
+  // Check if user is admin or artisan, if not redirect
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (!user || (user.role !== 'admin' && user.role !== 'artisan')) {
       navigate('/');
     }
   }, [user, navigate]);
@@ -50,31 +50,35 @@ export default function AdminDashboard() {
         <div className="col-md-3 col-lg-2 d-md-block bg-dark sidebar" style={{ minHeight: 'calc(100vh - 56px)' }}>
           <div className="position-sticky pt-3">
             <ul className="nav flex-column">
-              <li className="nav-item">
-                <button 
-                  className={`nav-link btn btn-link text-white ${activeTab === 'analytics' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('analytics')}
-                >
-                  <i className="bi bi-graph-up me-2"></i>
-                  Dashboard & Analytics
-                </button>
-              </li>
+              {user?.role === 'admin' && (
+                <>
+                  <li className="nav-item">
+                    <button 
+                      className={`nav-link btn btn-link text-white ${activeTab === 'analytics' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('analytics')}
+                    >
+                      <i className="bi bi-graph-up me-2"></i>
+                      Dashboard & Analytics
+                    </button>
+                  </li>
+                  <li className="nav-item">
+                    <button 
+                      className={`nav-link btn btn-link text-white ${activeTab === 'users' ? 'active' : ''}`}
+                      onClick={() => setActiveTab('users')}
+                    >
+                      <i className="bi bi-people me-2"></i>
+                      User Management
+                    </button>
+                  </li>
+                </>
+              )}
               <li className="nav-item">
                 <button 
                   className={`nav-link btn btn-link text-white ${activeTab === 'products' ? 'active' : ''}`}
                   onClick={() => setActiveTab('products')}
                 >
                   <i className="bi bi-box me-2"></i>
-                  Content Management
-                </button>
-              </li>
-              <li className="nav-item">
-                <button 
-                  className={`nav-link btn btn-link text-white ${activeTab === 'users' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('users')}
-                >
-                  <i className="bi bi-people me-2"></i>
-                  User Management
+                  {user?.role === 'admin' ? 'Content Management' : 'My Products'}
                 </button>
               </li>
             </ul>
@@ -84,14 +88,14 @@ export default function AdminDashboard() {
         {/* Main content */}
         <div className="col-md-9 col-lg-10 ms-sm-auto">
           <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-            <h2>Admin Dashboard</h2>
+            <h2>{user?.role === 'admin' ? 'Admin Dashboard' : 'Artisan Dashboard'}</h2>
           </div>
 
           {/* Tab Content */}
           <div className="tab-content">
-            {activeTab === 'analytics' && <AnalyticsDashboard />}
+            {activeTab === 'analytics' && user?.role === 'admin' && <AnalyticsDashboard />}
             {activeTab === 'products' && <ContentManagement />}
-            {activeTab === 'users' && <UserManagement />}
+            {activeTab === 'users' && user?.role === 'admin' && <UserManagement />}
           </div>
         </div>
       </div>
@@ -336,6 +340,8 @@ function AnalyticsDashboard() {
 
 // Content Management Component
 function ContentManagement() {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -356,11 +362,18 @@ function ContentManagement() {
     }
   };
 
-  // Filter products based on search term
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter products based on search term and user role
+  const filteredProducts = products.filter(product => {
+    // If artisan, only show their own products
+    if (user.role === 'artisan') {
+      if (!product.artisan || product.artisan._id !== user.id) {
+        return false;
+      }
+    }
+    
+    return product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           product.category.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   // Handle product deletion
   const handleDeleteProduct = async (id) => {
@@ -471,14 +484,25 @@ function ContentManagement() {
 
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-4 d-flex justify-content-between align-items-center">
         <input
           type="text"
-          className="form-control"
+          className="form-control me-2"
+          style={{ maxWidth: '300px' }}
           placeholder="Search products..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        
+        {user.role === 'artisan' && (
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/add-product')}
+          >
+            <i className="bi bi-plus-circle me-1"></i>
+            Add New Product
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -504,7 +528,11 @@ function ContentManagement() {
             <tbody>
               {filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center">No products found</td>
+                  <td colSpan="7" className="text-center">
+                    {user.role === 'artisan' 
+                      ? "You haven't added any products yet." 
+                      : "No products found."}
+                  </td>
                 </tr>
               ) : (
                 filteredProducts.map(product => (

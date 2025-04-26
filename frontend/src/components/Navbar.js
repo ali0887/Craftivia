@@ -198,7 +198,7 @@ export default function Navbar() {
                           to="/admin"
                           onClick={closeMenu}
                         >
-                          <i className="bi bi-grid me-2"></i>My Products
+                          <i className="bi bi-grid me-2"></i>Manage Products
                         </Link>
                       </li>
                     )}

@@ -10,6 +10,7 @@ import Cart           from './pages/Cart';
 import Profile        from './pages/Profile';
 import ProductDetail  from './pages/ProductDetail';
 import AdminDashboard from './pages/AdminDashboard';
+import AddProduct     from './pages/AddProduct';
 import Artisians      from './pages/Artisians';
 import SearchResults  from './pages/SearchResults';
 import Checkout       from './pages/Checkout';
@@ -36,6 +37,7 @@ function App() {
           {user && (
             <>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/add-product" element={<AddProduct />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
             </>
