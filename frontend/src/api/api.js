@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const API = axios.create({
-  baseURL: 'http://localhost:5001/api',
+  baseURL: 'https://craftivia-fac38888b70d.herokuapp.com/api',
 });
 
 // Add authorization token if available in localStorage
